@@ -103,42 +103,42 @@ def create_card(product, index):
     text_layout.addWidget(qty_label)
     card_layout.addLayout(text_layout)
 
-    # --- БЛОК ЦЕНЫ СО СКИДКОЙ И СТАРОЙ ЦЕНОЙ ---
+    # =========================================================
+    # БЛОК ЦЕН (ЗАДАНИЯ 2, 3, 4 ПАРА 39)
+    # =========================================================
     old_price = float(price)
     
     # Имитация скидки для проверки
     if product_id % 2 == 0:
         new_price = old_price * 0.8  # Скидка 20%
     else:
-        new_price = old_price * 0.95 # Скидка 5%
+        new_price = old_price        # Без скидки
 
     discount = calculate_discount(old_price, new_price)
 
     price_layout = QHBoxLayout()
     
-    # 1. Старая цена (перечеркнутая)
-    old_price_label = QLabel(f"{old_price:.2f} ₽")
-    old_price_label.setStyleSheet("""
-        color: #888888; 
-        font-size: 14px; 
-        text-decoration: line-through;
-    """)
+    # 1. Старая цена (перечеркнутая и красная)
+    old_price_label = QLabel(f"<s>{old_price:.2f} ₽</s>")
+    old_price_label.setStyleSheet("color: red; font-size: 14px;")
     price_layout.addWidget(old_price_label)
 
-    # 2. Новая цена (со скидкой)
+    # 2. Новая цена (черная и жирная)
     new_price_label = QLabel(f"{new_price:.2f} ₽")
-    if discount > 15:
-        new_price_label.setStyleSheet("color: #2E8B57; font-weight: bold; font-size: 18px;")
-    else:
-        new_price_label.setStyleSheet("color: #70B2AF; font-weight: bold; font-size: 18px;")
-    
+    new_price_label.setStyleSheet("color: black; font-weight: bold; font-size: 18px;")
     price_layout.addWidget(new_price_label)
     
     price_layout.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
     card_layout.addLayout(price_layout)
 
+    # 3. Скрываем старую цену, если скидки нет
+    if discount > 0:
+        old_price_label.show()
+    else:
+        old_price_label.hide()
+
     card.setLayout(card_layout)
-    return card  # <--- ВАЖНО!
+    return card
 
 # 3. ГЛАВНОЕ ОКНО ПРИЛОЖЕНИЯ
 class MainWindow(QMainWindow):
@@ -159,14 +159,12 @@ class MainWindow(QMainWindow):
         central = QWidget()
         main_layout = QVBoxLayout()
 
-        # ШАПКА С ЛОГОТИПОМ, ФИО И КНОПКОЙ ВЫХОД
+        # ШАПКА
         header_layout = QHBoxLayout()
-        
         logo = QLabel()
         logo.setPixmap(QPixmap(r"C:\Users\Sustesion\up11-project-aleshin\resources\picture.png").scaled(
             60, 60, Qt.KeepAspectRatio, Qt.SmoothTransformation))
         header_layout.addWidget(logo)
-
         header_layout.addStretch()
 
         text = f"ФИО: {self.full_name}" if self.full_name else "Гость"
@@ -176,16 +174,8 @@ class MainWindow(QMainWindow):
 
         self.logout_button = QPushButton("Выход")
         self.logout_button.setStyleSheet("""
-            QPushButton {
-                background-color: #FFFFFF; 
-                color: #000000; 
-                font-weight: bold; 
-                border-radius: 5px; 
-                padding: 5px 15px;
-            }
-            QPushButton:hover {
-                background-color: #D2F6E7;
-            }
+            QPushButton { background-color: #FFFFFF; color: #000000; font-weight: bold; border-radius: 5px; padding: 5px 15px; }
+            QPushButton:hover { background-color: #D2F6E7; }
         """)
         self.logout_button.clicked.connect(self.logout)
         header_layout.addWidget(self.logout_button)
@@ -194,13 +184,10 @@ class MainWindow(QMainWindow):
 
         # КНОПКИ РОЛЕЙ
         buttons_layout = QHBoxLayout()
-        
         self.order_button = QPushButton("Купить товар")
         self.order_button.setStyleSheet("background-color: #70B2AF; color: #FFFFFF; font-weight: bold; border-radius: 5px; padding: 5px 15px;")
-        
         self.manager_button = QPushButton("Заказы (менеджер)")
         self.manager_button.setStyleSheet("background-color: #70B2AF; color: #FFFFFF; font-weight: bold; border-radius: 5px; padding: 5px 15px;")
-        
         self.admin_button = QPushButton("Админ-панель")
         self.admin_button.setStyleSheet("background-color: #70B2AF; color: #FFFFFF; font-weight: bold; border-radius: 5px; padding: 5px 15px;")
         
@@ -238,13 +225,12 @@ class MainWindow(QMainWindow):
         self.order_button.hide()
         self.manager_button.hide()
         self.admin_button.hide()
-
-        if self.role_id == 1:        # Администратор
+        if self.role_id == 1:
             self.admin_button.show()
             self.manager_button.show()
-        elif self.role_id == 2:      # Менеджер
+        elif self.role_id == 2:
             self.manager_button.show()
-        elif self.role_id == 3:      # Клиент
+        elif self.role_id == 3:
             self.order_button.show()
 
     def logout(self):
@@ -262,7 +248,6 @@ class MainWindow(QMainWindow):
             self.db.close_all()
         event.accept()
 
-# ЗАПУСК ПРИЛОЖЕНИЯ
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     db = Database()
