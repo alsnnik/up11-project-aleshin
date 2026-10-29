@@ -7,6 +7,7 @@ class LoginWindow(QWidget):
         self.db = db
         self.user_id = None
         self.role_id = None
+        self.full_name = None # <--- Добавили хранение ФИО
 
         self.setWindowTitle("Авторизация — Мир интерьера")
         self.resize(300, 250)
@@ -46,7 +47,12 @@ class LoginWindow(QWidget):
             return
 
         cursor = conn.cursor()
-        cursor.execute("SELECT user_id, role_id FROM users WHERE login = %s", (login,))
+        # ЗАДАНИЕ 2.1: Запрашиваем ФИО (без отчества, так как его нет в БД)
+        cursor.execute(
+            "SELECT user_id, role_id, last_name, first_name "
+            "FROM users WHERE login = %s",
+            (login,)
+        )
         result = cursor.fetchone()
 
         cursor.close()
@@ -58,13 +64,18 @@ class LoginWindow(QWidget):
             self.user_id = result[0]
             self.role_id = result[1]
             
+            # ЗАДАНИЕ 2.1: Собираем ФИО из фамилии и имени
+            self.full_name = f"{result[2]} {result[3]}"
+            
             from main import MainWindow
-            self.main_window = MainWindow(role_id=self.role_id)
+            # ЗАДАНИЕ 3.1: Передаем ФИО в главное окно
+            self.main_window = MainWindow(role_id=self.role_id, full_name=self.full_name)
             self.main_window.show()
             self.close()
 
     def login_as_guest(self):
         from main import MainWindow
-        self.main_window = MainWindow(role_id=None)
+        # Для гостя ФИО не передаем (будет None)
+        self.main_window = MainWindow(role_id=None, full_name=None)
         self.main_window.show()
         self.close()

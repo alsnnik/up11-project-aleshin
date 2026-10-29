@@ -3,7 +3,7 @@ import os
 import mysql.connector
 from mysql.connector import pooling
 from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, 
-                               QVBoxLayout, QHBoxLayout, QLabel, QScrollArea, QPushButton)
+                               QVBoxLayout, QHBoxLayout, QLabel, QScrollArea, QPushButton, QMessageBox)
 from PySide6.QtGui import QIcon, QPixmap
 from PySide6.QtCore import Qt
 from login_window import LoginWindow
@@ -114,9 +114,10 @@ def create_card(product, index):
 
 # 3. ГЛАВНОЕ ОКНО ПРИЛОЖЕНИЯ
 class MainWindow(QMainWindow):
-    def __init__(self, role_id=None):
+    def __init__(self, role_id=None, full_name=None): 
         super().__init__()
-        self.role_id = role_id  # None — гость
+        self.role_id = role_id
+        self.full_name = full_name
         self.db = Database()
         
         self.setWindowTitle("Мир интерьера — Каталог")
@@ -130,11 +131,52 @@ class MainWindow(QMainWindow):
         central = QWidget()
         main_layout = QVBoxLayout()
 
-        # Кнопки ролей
+        # --- ШАПКА С ЛОГОТИПОМ, ФИО И КНОПКОЙ ВЫХОД ---
+        header_layout = QHBoxLayout()
+        
+        logo = QLabel()
+        logo.setPixmap(QPixmap(r"C:\Users\Sustesion\up11-project-aleshin\resources\picture.png").scaled(
+            60, 60, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+        header_layout.addWidget(logo)
+
+        header_layout.addStretch()
+
+        # ФИО (Белое, крупное и жирное)
+        text = f"ФИО: {self.full_name}" if self.full_name else "Гость"
+        self.name_label = QLabel(text)
+        self.name_label.setStyleSheet("font-weight: bold; font-size: 16px; color: #FFFFFF;")
+        header_layout.addWidget(self.name_label)
+
+        # Кнопка Выход (Красивая, с белым фоном)
+        self.logout_button = QPushButton("Выход")
+        self.logout_button.setStyleSheet("""
+            QPushButton {
+                background-color: #FFFFFF; 
+                color: #000000; 
+                font-weight: bold; 
+                border-radius: 5px; 
+                padding: 5px 15px;
+            }
+            QPushButton:hover {
+                background-color: #D2F6E7;
+            }
+        """)
+        self.logout_button.clicked.connect(self.logout)
+        header_layout.addWidget(self.logout_button)
+
+        main_layout.addLayout(header_layout)
+
+        # --- КНОПКИ РОЛЕЙ (Бирюзовые, чтобы было видно) ---
         buttons_layout = QHBoxLayout()
+        
         self.order_button = QPushButton("Купить товар")
+        self.order_button.setStyleSheet("background-color: #70B2AF; color: #FFFFFF; font-weight: bold; border-radius: 5px; padding: 5px 15px;")
+        
         self.manager_button = QPushButton("Заказы (менеджер)")
+        self.manager_button.setStyleSheet("background-color: #70B2AF; color: #FFFFFF; font-weight: bold; border-radius: 5px; padding: 5px 15px;")
+        
         self.admin_button = QPushButton("Админ-панель")
+        self.admin_button.setStyleSheet("background-color: #70B2AF; color: #FFFFFF; font-weight: bold; border-radius: 5px; padding: 5px 15px;")
         
         buttons_layout.addWidget(self.order_button)
         buttons_layout.addWidget(self.manager_button)
@@ -142,7 +184,7 @@ class MainWindow(QMainWindow):
         buttons_layout.addStretch()
         main_layout.addLayout(buttons_layout)
 
-        # Каталог
+        # --- КАТАЛОГ ---
         container = QWidget()
         list_layout = QVBoxLayout()
         self.products = self.db.get_products()
@@ -180,6 +222,17 @@ class MainWindow(QMainWindow):
             self.manager_button.show()
         elif self.role_id == 3:      # Клиент
             self.order_button.show()
+
+    # --- МЕТОД ВЫХОДА ---
+    def logout(self):
+        reply = QMessageBox.question(
+            self, "Выход", "Вы уверены, что хотите выйти?",
+            QMessageBox.Yes | QMessageBox.No, QMessageBox.No
+        )
+        if reply == QMessageBox.Yes:
+            self.login_window = LoginWindow(Database())
+            self.login_window.show()
+            self.close()
 
     def closeEvent(self, event):
         if self.db:
