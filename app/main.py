@@ -71,8 +71,11 @@ def calculate_discount(old_price, new_price):
 def create_card(product, index):
     (product_id, name, category, manufacturer, price, total_quantity) = product
 
+    # ИМИТАЦИЯ: принудительно делаем остаток 0 у 3-го товара, чтобы показать голубую подсветку
+    if index == 2:
+        total_quantity = 0
+
     card = QWidget()
-    card.setStyleSheet("background-color: #D2F6E7; border-radius: 10px; padding: 10px;")
     card_layout = QHBoxLayout()
 
     # Изображение
@@ -103,12 +106,8 @@ def create_card(product, index):
     text_layout.addWidget(qty_label)
     card_layout.addLayout(text_layout)
 
-    # =========================================================
-    # БЛОК ЦЕН (ЗАДАНИЯ 2, 3, 4 ПАРА 39)
-    # =========================================================
+    # --- БЛОК ЦЕН ---
     old_price = float(price)
-    
-    # Имитация скидки для проверки
     if product_id % 2 == 0:
         new_price = old_price * 0.8  # Скидка 20%
     else:
@@ -118,12 +117,12 @@ def create_card(product, index):
 
     price_layout = QHBoxLayout()
     
-    # 1. Старая цена (перечеркнутая и красная)
+    # Старая цена (перечеркнутая, красная)
     old_price_label = QLabel(f"<s>{old_price:.2f} ₽</s>")
     old_price_label.setStyleSheet("color: red; font-size: 14px;")
     price_layout.addWidget(old_price_label)
 
-    # 2. Новая цена (черная и жирная)
+    # Новая цена (черная, жирная)
     new_price_label = QLabel(f"{new_price:.2f} ₽")
     new_price_label.setStyleSheet("color: black; font-weight: bold; font-size: 18px;")
     price_layout.addWidget(new_price_label)
@@ -131,13 +130,24 @@ def create_card(product, index):
     price_layout.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
     card_layout.addLayout(price_layout)
 
-    # 3. Скрываем старую цену, если скидки нет
+    # Скрываем старую цену, если скидки нет
     if discount > 0:
         old_price_label.show()
     else:
         old_price_label.hide()
 
     card.setLayout(card_layout)
+
+    # =========================================================
+    # ### ЗАДАНИЕ 2 И 3 ПАРА 40: ОБЪЕДИНЕННАЯ ПОДСВЕТКА
+    # =========================================================
+    if total_quantity == 0:
+        # Нет на складе — голубой фон
+        card.setStyleSheet("background-color: #ADD8E6; border-radius: 10px; padding: 10px;")
+    else:
+        # Есть в наличии — стандартный фон
+        card.setStyleSheet("background-color: #D2F6E7; border-radius: 10px; padding: 10px;")
+
     return card
 
 # 3. ГЛАВНОЕ ОКНО ПРИЛОЖЕНИЯ
@@ -152,6 +162,9 @@ class MainWindow(QMainWindow):
         self.resize(800, 600)
         self.setWindowIcon(QIcon(r"C:\Users\Sustesion\up11-project-aleshin\resources\Мир интерьера.ico"))
 
+        # Делаем фон окна белым, чтобы было как в образце
+        self.setStyleSheet("QMainWindow { background-color: #FFFFFF; }")
+
         self.setup_ui()
         self.setup_role_interface()
 
@@ -162,20 +175,21 @@ class MainWindow(QMainWindow):
         # ШАПКА
         header_layout = QHBoxLayout()
         logo = QLabel()
-        logo.setPixmap(QPixmap(r"C:\Users\Sustesion\up11-project-aleshin\resources\picture.png").scaled(
-            60, 60, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+        # Пытаемся загрузить логотип, если нет - заглушку
+        logo_path = r"C:\Users\Sustesion\up11-project-aleshin\resources\picture.png"
+        logo.setPixmap(QPixmap(logo_path).scaled(60, 60, Qt.KeepAspectRatio, Qt.SmoothTransformation))
         header_layout.addWidget(logo)
         header_layout.addStretch()
 
         text = f"ФИО: {self.full_name}" if self.full_name else "Гость"
         self.name_label = QLabel(text)
-        self.name_label.setStyleSheet("font-weight: bold; font-size: 16px; color: #FFFFFF;")
+        self.name_label.setStyleSheet("font-weight: bold; font-size: 16px; color: #000000;") # Черный текст на белом фоне
         header_layout.addWidget(self.name_label)
 
         self.logout_button = QPushButton("Выход")
         self.logout_button.setStyleSheet("""
-            QPushButton { background-color: #FFFFFF; color: #000000; font-weight: bold; border-radius: 5px; padding: 5px 15px; }
-            QPushButton:hover { background-color: #D2F6E7; }
+            QPushButton { background-color: #70B2AF; color: #FFFFFF; font-weight: bold; border-radius: 5px; padding: 5px 15px; }
+            QPushButton:hover { background-color: #5c9694; }
         """)
         self.logout_button.clicked.connect(self.logout)
         header_layout.addWidget(self.logout_button)
