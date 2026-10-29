@@ -6,6 +6,7 @@ from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget,
                                QVBoxLayout, QHBoxLayout, QLabel, QScrollArea)
 from PySide6.QtGui import QIcon, QPixmap
 from PySide6.QtCore import Qt
+from login_window import LoginWindow
 
 # 1. КЛАСС ДЛЯ РАБОТЫ С БАЗОЙ ДАННЫХ
 class Database:
@@ -116,8 +117,9 @@ def create_card(product, index):
 
 # 3. ГЛАВНОЕ ОКНО ПРИЛОЖЕНИЯ
 class MainWindow(QMainWindow):
-    def __init__(self):
+    def __init__(self, role_id=None):  # <--- ДОБАВИЛИ role_id
         super().__init__()
+        self.role_id = role_id 
         self.setWindowTitle("Мир интерьера — Каталог")
         self.resize(800, 600)
         
@@ -160,6 +162,13 @@ class MainWindow(QMainWindow):
 # ЗАПУСК ПРИЛОЖЕНИЯ
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    window = MainWindow()
-    window.show()
+    
+    # Создаем базу данных
+   
+    db = Database()
+    
+    # Запускаем окно авторизации
+    login_window = LoginWindow(db)
+    login_window.show()
+    
     sys.exit(app.exec())
