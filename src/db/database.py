@@ -11,7 +11,7 @@ class Database:
                 port=3306,
                 database="interior_db", 
                 user="root",            
-                password="wrong_password"  # <--- ВЕРНИТЕ СЮДА ВАШ ПРАВИЛЬНЫЙ ПАРОЛЬ!
+                password="1234"
             )
             print("Пул соединений MySQL успешно создан!")
         except mysql.connector.Error as e:
