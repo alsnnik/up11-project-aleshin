@@ -71,9 +71,8 @@ def calculate_discount(old_price, new_price):
 def create_card(product, index):
     (product_id, name, category, manufacturer, price, total_quantity) = product
 
-    # ИМИТАЦИЯ: принудительно делаем остаток 0 у 3-го товара, чтобы показать голубую подсветку
     if index == 2:
-        total_quantity = 0
+        total_quantity = 0 # Имитация для голубой подсветки
 
     card = QWidget()
     card_layout = QHBoxLayout()
@@ -106,23 +105,20 @@ def create_card(product, index):
     text_layout.addWidget(qty_label)
     card_layout.addLayout(text_layout)
 
-    # --- БЛОК ЦЕН ---
+    # Блок цен
     old_price = float(price)
     if product_id % 2 == 0:
-        new_price = old_price * 0.8  # Скидка 20%
+        new_price = old_price * 0.8
     else:
-        new_price = old_price        # Без скидки
+        new_price = old_price
 
     discount = calculate_discount(old_price, new_price)
 
     price_layout = QHBoxLayout()
-    
-    # Старая цена (перечеркнутая, красная)
     old_price_label = QLabel(f"<s>{old_price:.2f} ₽</s>")
     old_price_label.setStyleSheet("color: red; font-size: 14px;")
     price_layout.addWidget(old_price_label)
 
-    # Новая цена (черная, жирная)
     new_price_label = QLabel(f"{new_price:.2f} ₽")
     new_price_label.setStyleSheet("color: black; font-weight: bold; font-size: 18px;")
     price_layout.addWidget(new_price_label)
@@ -130,7 +126,6 @@ def create_card(product, index):
     price_layout.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
     card_layout.addLayout(price_layout)
 
-    # Скрываем старую цену, если скидки нет
     if discount > 0:
         old_price_label.show()
     else:
@@ -138,14 +133,10 @@ def create_card(product, index):
 
     card.setLayout(card_layout)
 
-    # =========================================================
-    # ### ЗАДАНИЕ 2 И 3 ПАРА 40: ОБЪЕДИНЕННАЯ ПОДСВЕТКА
-    # =========================================================
+    # Подсветка
     if total_quantity == 0:
-        # Нет на складе — голубой фон
         card.setStyleSheet("background-color: #ADD8E6; border-radius: 10px; padding: 10px;")
     else:
-        # Есть в наличии — стандартный фон
         card.setStyleSheet("background-color: #D2F6E7; border-radius: 10px; padding: 10px;")
 
     return card
@@ -158,12 +149,27 @@ class MainWindow(QMainWindow):
         self.full_name = full_name
         self.db = Database()
         
-        self.setWindowTitle("Мир интерьера — Каталог")
+        # ОПРЕДЕЛЯЕМ РОЛЬ ДЛЯ ЗАГОЛОВКА
+        role_names = {1: "Администратор", 2: "Менеджер", 3: "Клиент", None: "Гость"}
+        role_title = role_names.get(self.role_id, "Гость")
+        
+        self.setWindowTitle(f"Мир интерьера — Каталог ({role_title})")
         self.resize(800, 600)
         self.setWindowIcon(QIcon(r"C:\Users\Sustesion\up11-project-aleshin\resources\Мир интерьера.ico"))
 
-        # Делаем фон окна белым, чтобы было как в образце
-        self.setStyleSheet("QMainWindow { background-color: #FFFFFF; }")
+        # ГЛОБАЛЬНЫЙ СТИЛЬ
+        self.setStyleSheet("""
+            QMainWindow { background-color: #FFFFFF; font-family: Calibri; }
+            QPushButton {
+                background-color: #70B2AF; 
+                color: #FFFFFF; 
+                font-family: Calibri; 
+                font-weight: bold; 
+                border-radius: 5px; 
+                padding: 5px 15px;
+            }
+            QPushButton:hover { background-color: #5c9694; }
+        """)
 
         self.setup_ui()
         self.setup_role_interface()
@@ -172,38 +178,37 @@ class MainWindow(QMainWindow):
         central = QWidget()
         main_layout = QVBoxLayout()
 
-        # ШАПКА
-        header_layout = QHBoxLayout()
+        # --- ШАПКА ---
+        header_widget = QWidget()
+        header_layout = QHBoxLayout(header_widget)
+        header_widget.setStyleSheet("background-color: #FFFFFF;")
+        
         logo = QLabel()
-        # Пытаемся загрузить логотип, если нет - заглушку
-        logo_path = r"C:\Users\Sustesion\up11-project-aleshin\resources\picture.png"
+        logo_path = r"C:\Users\Sustesion\up11-project-aleshin\resources\Мир интерьера.png"
         logo.setPixmap(QPixmap(logo_path).scaled(60, 60, Qt.KeepAspectRatio, Qt.SmoothTransformation))
         header_layout.addWidget(logo)
         header_layout.addStretch()
 
         text = f"ФИО: {self.full_name}" if self.full_name else "Гость"
         self.name_label = QLabel(text)
-        self.name_label.setStyleSheet("font-weight: bold; font-size: 16px; color: #000000;") # Черный текст на белом фоне
+        self.name_label.setStyleSheet("font-weight: bold; font-size: 16px; color: #000000;")
         header_layout.addWidget(self.name_label)
 
         self.logout_button = QPushButton("Выход")
         self.logout_button.setStyleSheet("""
-            QPushButton { background-color: #70B2AF; color: #FFFFFF; font-weight: bold; border-radius: 5px; padding: 5px 15px; }
-            QPushButton:hover { background-color: #5c9694; }
+            QPushButton { background-color: #D2F6E7; color: #000000; font-weight: bold; border-radius: 5px; padding: 5px 15px; }
+            QPushButton:hover { background-color: #b5e5d3; }
         """)
         self.logout_button.clicked.connect(self.logout)
         header_layout.addWidget(self.logout_button)
 
-        main_layout.addLayout(header_layout)
+        main_layout.addWidget(header_widget)
 
-        # КНОПКИ РОЛЕЙ
+        # --- КНОПКИ РОЛЕЙ ---
         buttons_layout = QHBoxLayout()
         self.order_button = QPushButton("Купить товар")
-        self.order_button.setStyleSheet("background-color: #70B2AF; color: #FFFFFF; font-weight: bold; border-radius: 5px; padding: 5px 15px;")
         self.manager_button = QPushButton("Заказы (менеджер)")
-        self.manager_button.setStyleSheet("background-color: #70B2AF; color: #FFFFFF; font-weight: bold; border-radius: 5px; padding: 5px 15px;")
         self.admin_button = QPushButton("Админ-панель")
-        self.admin_button.setStyleSheet("background-color: #70B2AF; color: #FFFFFF; font-weight: bold; border-radius: 5px; padding: 5px 15px;")
         
         buttons_layout.addWidget(self.order_button)
         buttons_layout.addWidget(self.manager_button)
@@ -211,7 +216,7 @@ class MainWindow(QMainWindow):
         buttons_layout.addStretch()
         main_layout.addLayout(buttons_layout)
 
-        # КАТАЛОГ
+        # --- КАТАЛОГ ---
         container = QWidget()
         list_layout = QVBoxLayout()
         self.products = self.db.get_products()
