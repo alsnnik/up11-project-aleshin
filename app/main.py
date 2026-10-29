@@ -61,6 +61,12 @@ class Database:
             if cursor: cursor.close()
             if conn: conn.close()
 
+# ФУНКЦИЯ РАСЧЕТА СКИДКИ
+def calculate_discount(old_price, new_price):
+    if old_price == 0:
+        return 0
+    return (old_price - new_price) / old_price * 100
+
 # 2. ФУНКЦИЯ СОЗДАНИЯ КАРТОЧКИ ТОВАРА
 def create_card(product, index):
     (product_id, name, category, manufacturer, price, total_quantity) = product
@@ -69,32 +75,26 @@ def create_card(product, index):
     card.setStyleSheet("background-color: #D2F6E7; border-radius: 10px; padding: 10px;")
     card_layout = QHBoxLayout()
 
-    # Блок изображения
+    # Изображение
     image_label = QLabel()
     pixmap = None
-    
     if index == 0:
         image_path = "IMG_13_001.png" 
         full_path = os.path.join(r"C:\Users\Sustesion\up11-project-aleshin\resources", image_path)
         if os.path.exists(full_path):
             pixmap = QPixmap(full_path)
-
     if pixmap is None or pixmap.isNull():
        pixmap = QPixmap(r"C:\Users\Sustesion\up11-project-aleshin\resources\picture.png")
-
     image_label.setPixmap(pixmap.scaled(100, 100, Qt.KeepAspectRatio, Qt.SmoothTransformation))
     image_label.setFixedSize(100, 100)
     card_layout.addWidget(image_label)
 
     # Текстовая часть
     text_layout = QVBoxLayout()
-    
     name_label = QLabel(f"{manufacturer} | {name}")
     name_label.setStyleSheet("font-size: 16px; font-weight: bold; color: #000000;")
-    
     cat_label = QLabel(f"Категория: {category}")
     cat_label.setStyleSheet("color: #000000; font-size: 13px;")
-    
     qty_label = QLabel(f"Количество: {int(total_quantity)}")
     qty_label.setStyleSheet("color: #000000; font-size: 13px;")
     
@@ -103,14 +103,42 @@ def create_card(product, index):
     text_layout.addWidget(qty_label)
     card_layout.addLayout(text_layout)
 
-    # Цена
-    price_label = QLabel(f"{price} ₽")
-    price_label.setStyleSheet("font-size: 18px; font-weight: bold; color: #70B2AF;")
-    price_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-    card_layout.addWidget(price_label)
+    # --- БЛОК ЦЕНЫ СО СКИДКОЙ И СТАРОЙ ЦЕНОЙ ---
+    old_price = float(price)
+    
+    # Имитация скидки для проверки
+    if product_id % 2 == 0:
+        new_price = old_price * 0.8  # Скидка 20%
+    else:
+        new_price = old_price * 0.95 # Скидка 5%
+
+    discount = calculate_discount(old_price, new_price)
+
+    price_layout = QHBoxLayout()
+    
+    # 1. Старая цена (перечеркнутая)
+    old_price_label = QLabel(f"{old_price:.2f} ₽")
+    old_price_label.setStyleSheet("""
+        color: #888888; 
+        font-size: 14px; 
+        text-decoration: line-through;
+    """)
+    price_layout.addWidget(old_price_label)
+
+    # 2. Новая цена (со скидкой)
+    new_price_label = QLabel(f"{new_price:.2f} ₽")
+    if discount > 15:
+        new_price_label.setStyleSheet("color: #2E8B57; font-weight: bold; font-size: 18px;")
+    else:
+        new_price_label.setStyleSheet("color: #70B2AF; font-weight: bold; font-size: 18px;")
+    
+    price_layout.addWidget(new_price_label)
+    
+    price_layout.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+    card_layout.addLayout(price_layout)
 
     card.setLayout(card_layout)
-    return card
+    return card  # <--- ВАЖНО!
 
 # 3. ГЛАВНОЕ ОКНО ПРИЛОЖЕНИЯ
 class MainWindow(QMainWindow):
@@ -131,7 +159,7 @@ class MainWindow(QMainWindow):
         central = QWidget()
         main_layout = QVBoxLayout()
 
-        # --- ШАПКА С ЛОГОТИПОМ, ФИО И КНОПКОЙ ВЫХОД ---
+        # ШАПКА С ЛОГОТИПОМ, ФИО И КНОПКОЙ ВЫХОД
         header_layout = QHBoxLayout()
         
         logo = QLabel()
@@ -141,13 +169,11 @@ class MainWindow(QMainWindow):
 
         header_layout.addStretch()
 
-        # ФИО (Белое, крупное и жирное)
         text = f"ФИО: {self.full_name}" if self.full_name else "Гость"
         self.name_label = QLabel(text)
         self.name_label.setStyleSheet("font-weight: bold; font-size: 16px; color: #FFFFFF;")
         header_layout.addWidget(self.name_label)
 
-        # Кнопка Выход (Красивая, с белым фоном)
         self.logout_button = QPushButton("Выход")
         self.logout_button.setStyleSheet("""
             QPushButton {
@@ -166,7 +192,7 @@ class MainWindow(QMainWindow):
 
         main_layout.addLayout(header_layout)
 
-        # --- КНОПКИ РОЛЕЙ (Бирюзовые, чтобы было видно) ---
+        # КНОПКИ РОЛЕЙ
         buttons_layout = QHBoxLayout()
         
         self.order_button = QPushButton("Купить товар")
@@ -184,7 +210,7 @@ class MainWindow(QMainWindow):
         buttons_layout.addStretch()
         main_layout.addLayout(buttons_layout)
 
-        # --- КАТАЛОГ ---
+        # КАТАЛОГ
         container = QWidget()
         list_layout = QVBoxLayout()
         self.products = self.db.get_products()
@@ -209,12 +235,10 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(central)
 
     def setup_role_interface(self):
-        # По умолчанию скрываем всё (Гость)
         self.order_button.hide()
         self.manager_button.hide()
         self.admin_button.hide()
 
-        # Показываем в зависимости от роли
         if self.role_id == 1:        # Администратор
             self.admin_button.show()
             self.manager_button.show()
@@ -223,7 +247,6 @@ class MainWindow(QMainWindow):
         elif self.role_id == 3:      # Клиент
             self.order_button.show()
 
-    # --- МЕТОД ВЫХОДА ---
     def logout(self):
         reply = QMessageBox.question(
             self, "Выход", "Вы уверены, что хотите выйти?",
