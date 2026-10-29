@@ -9,11 +9,10 @@ class LoginWindow(QWidget):
         self.role_id = None
 
         self.setWindowTitle("Авторизация — Мир интерьера")
-        self.resize(300, 200)
+        self.resize(300, 250)
 
         layout = QVBoxLayout()
         
-        # Заголовок
         title_label = QLabel("Вход в систему")
         title_label.setStyleSheet("font-size: 18px; font-weight: bold; margin-bottom: 10px;")
         layout.addWidget(title_label)
@@ -27,9 +26,13 @@ class LoginWindow(QWidget):
         self.login_button.clicked.connect(self.check_login)
         layout.addWidget(self.login_button)
 
+        # --- Кнопка гостя ---
+        self.guest_button = QPushButton("Войти как гость")
+        self.guest_button.clicked.connect(self.login_as_guest)
+        layout.addWidget(self.guest_button)
+
         self.setLayout(layout)
 
-    # login_window.py — в методе check_login (адаптировано под "Мир интерьера")
     def check_login(self):
         login = self.login_input.text().strip()
 
@@ -43,7 +46,6 @@ class LoginWindow(QWidget):
             return
 
         cursor = conn.cursor()
-        # Запрос к таблице users базы interior_db
         cursor.execute("SELECT user_id, role_id FROM users WHERE login = %s", (login,))
         result = cursor.fetchone()
 
@@ -56,8 +58,13 @@ class LoginWindow(QWidget):
             self.user_id = result[0]
             self.role_id = result[1]
             
-            # Переход к главному окну каталога "Мир интерьера"
             from main import MainWindow
             self.main_window = MainWindow(role_id=self.role_id)
             self.main_window.show()
             self.close()
+
+    def login_as_guest(self):
+        from main import MainWindow
+        self.main_window = MainWindow(role_id=None)
+        self.main_window.show()
+        self.close()

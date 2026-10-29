@@ -3,7 +3,7 @@ import os
 import mysql.connector
 from mysql.connector import pooling
 from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, 
-                               QVBoxLayout, QHBoxLayout, QLabel, QScrollArea)
+                               QVBoxLayout, QHBoxLayout, QLabel, QScrollArea, QPushButton)
 from PySide6.QtGui import QIcon, QPixmap
 from PySide6.QtCore import Qt
 from login_window import LoginWindow
@@ -62,7 +62,6 @@ class Database:
             if conn: conn.close()
 
 # 2. ФУНКЦИЯ СОЗДАНИЯ КАРТОЧКИ ТОВАРА
-# Добавляем параметр index (позиция карточки в списке)
 def create_card(product, index):
     (product_id, name, category, manufacturer, price, total_quantity) = product
 
@@ -70,18 +69,16 @@ def create_card(product, index):
     card.setStyleSheet("background-color: #D2F6E7; border-radius: 10px; padding: 10px;")
     card_layout = QHBoxLayout()
 
-    # --- БЛОК ИЗОБРАЖЕНИЯ ---
+    # Блок изображения
     image_label = QLabel()
     pixmap = None
     
-    # ЛОГИКА: Если это первый товар (index == 0), пытаемся загрузить картинку
     if index == 0:
         image_path = "IMG_13_001.png" 
         full_path = os.path.join(r"C:\Users\Sustesion\up11-project-aleshin\resources", image_path)
         if os.path.exists(full_path):
             pixmap = QPixmap(full_path)
 
-    # Если картинка не загрузилась (или это НЕ первый товар) — ставим заглушку
     if pixmap is None or pixmap.isNull():
        pixmap = QPixmap(r"C:\Users\Sustesion\up11-project-aleshin\resources\picture.png")
 
@@ -89,7 +86,7 @@ def create_card(product, index):
     image_label.setFixedSize(100, 100)
     card_layout.addWidget(image_label)
 
-    # --- ТЕКСТОВАЯ ЧАСТЬ ---
+    # Текстовая часть
     text_layout = QVBoxLayout()
     
     name_label = QLabel(f"{manufacturer} | {name}")
@@ -106,7 +103,7 @@ def create_card(product, index):
     text_layout.addWidget(qty_label)
     card_layout.addLayout(text_layout)
 
-    # --- ЦЕНА ---
+    # Цена
     price_label = QLabel(f"{price} ₽")
     price_label.setStyleSheet("font-size: 18px; font-weight: bold; color: #70B2AF;")
     price_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
@@ -117,27 +114,44 @@ def create_card(product, index):
 
 # 3. ГЛАВНОЕ ОКНО ПРИЛОЖЕНИЯ
 class MainWindow(QMainWindow):
-    def __init__(self, role_id=None):  # <--- ДОБАВИЛИ role_id
+    def __init__(self, role_id=None):
         super().__init__()
-        self.role_id = role_id 
+        self.role_id = role_id  # None — гость
+        self.db = Database()
+        
         self.setWindowTitle("Мир интерьера — Каталог")
         self.resize(800, 600)
-        
-        self.db = Database() 
         self.setWindowIcon(QIcon(r"C:\Users\Sustesion\up11-project-aleshin\resources\Мир интерьера.ico"))
 
+        self.setup_ui()
+        self.setup_role_interface()
+
+    def setup_ui(self):
+        central = QWidget()
+        main_layout = QVBoxLayout()
+
+        # Кнопки ролей
+        buttons_layout = QHBoxLayout()
+        self.order_button = QPushButton("Купить товар")
+        self.manager_button = QPushButton("Заказы (менеджер)")
+        self.admin_button = QPushButton("Админ-панель")
+        
+        buttons_layout.addWidget(self.order_button)
+        buttons_layout.addWidget(self.manager_button)
+        buttons_layout.addWidget(self.admin_button)
+        buttons_layout.addStretch()
+        main_layout.addLayout(buttons_layout)
+
+        # Каталог
         container = QWidget()
         list_layout = QVBoxLayout()
-
         self.products = self.db.get_products()
         
         if self.products:
-            # ИСПОЛЬЗУЕМ enumerate, чтобы получить индекс (номер) каждого товара
             for index, product in enumerate(self.products):
-                # Передаем индекс в функцию create_card
                 list_layout.addWidget(create_card(product, index))
         else:
-            error_label = QLabel("Товары не найдены или нет подключения к БД")
+            error_label = QLabel("Товары не найдены")
             error_label.setAlignment(Qt.AlignCenter)
             list_layout.addWidget(error_label)
             
@@ -147,12 +161,25 @@ class MainWindow(QMainWindow):
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setWidget(container)
-        self.setCentralWidget(scroll)
+        main_layout.addWidget(scroll)
 
-        self.setStyleSheet("""
-            QMainWindow { background-color: #FFFFFF; font-family: Calibri; }
-            QScrollArea { border: none; }
-        """)
+        central.setLayout(main_layout)
+        self.setCentralWidget(central)
+
+    def setup_role_interface(self):
+        # По умолчанию скрываем всё (Гость)
+        self.order_button.hide()
+        self.manager_button.hide()
+        self.admin_button.hide()
+
+        # Показываем в зависимости от роли
+        if self.role_id == 1:        # Администратор
+            self.admin_button.show()
+            self.manager_button.show()
+        elif self.role_id == 2:      # Менеджер
+            self.manager_button.show()
+        elif self.role_id == 3:      # Клиент
+            self.order_button.show()
 
     def closeEvent(self, event):
         if self.db:
@@ -162,13 +189,7 @@ class MainWindow(QMainWindow):
 # ЗАПУСК ПРИЛОЖЕНИЯ
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    
-    # Создаем базу данных
-   
     db = Database()
-    
-    # Запускаем окно авторизации
     login_window = LoginWindow(db)
     login_window.show()
-    
     sys.exit(app.exec())
