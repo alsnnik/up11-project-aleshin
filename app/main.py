@@ -9,7 +9,40 @@ from PySide6.QtGui import QIcon, QPixmap
 from PySide6.QtCore import Qt
 from login_window import LoginWindow
 
-DISCOUNT_RATE = 0.8
+# Константа для расчета скидки
+DISCOUNT_RATE = 0.75
+
+def calculate_price_interior(item_id, base_price):
+    try:
+        connection = mysql.connector.connect(
+            database="interior_db",
+            user="root",
+            password="1234",
+            host="127.0.0.1",
+            port="3306",
+        )
+        cursor = connection.cursor()
+        query = """
+            SELECT COUNT(*) 
+            FROM order_items oi
+            JOIN orders o ON oi.order_id = o.order_id
+            WHERE oi.product_id = %s 
+            AND o.order_date >= '2026-01-01';
+        """
+        cursor.execute(query, (item_id,))
+        result = cursor.fetchone()
+        orders_count = result[0]
+        cursor.close()
+        connection.close()
+
+        # Если товар не заказывали, даем скидку 25% (0.75)
+        if orders_count == 0:
+            return base_price * DISCOUNT_RATE
+        else:
+            return base_price
+    except Exception as e:
+        print(f"Ошибка БД (расчет скидки): {e}")
+        return base_price
 
 class Database:
     def __init__(self):
@@ -65,7 +98,6 @@ class Database:
         try:
             cursor = conn.cursor()
             pattern = f"%{search}%"
-            
             query = f"""
                 SELECT p.product_id, p.name, c.name AS category, 
                        p.manufacturer, p.price,
@@ -73,12 +105,13 @@ class Database:
                 FROM products p
                 LEFT JOIN categories c ON p.category_id = c.category_id
                 LEFT JOIN stock_items si ON p.product_id = si.product_id
-                WHERE p.name LIKE %s
+                WHERE (p.name LIKE %s OR c.name LIKE %s)
                   AND (c.name = %s OR %s = 'Все категории')
                 GROUP BY p.product_id
                 ORDER BY p.price {order}
             """
-            cursor.execute(query, (pattern, category, category))
+            # Передаем pattern 4 раза: для названия товара, для категории, и дважды для фильтра
+            cursor.execute(query, (pattern, pattern, category, category))
             return cursor.fetchall()
         except mysql.connector.Error as e:
             print(f"Ошибка БД (товары): {e}")
@@ -89,16 +122,12 @@ class Database:
             if conn:
                 conn.close()
 
-def calculate_discount(old_price, new_price):
-    if old_price == 0:
-        return 0
-    return (old_price - new_price) / old_price * 100
-
 def create_card(product, index):
     (product_id, name, category, manufacturer, price, total_quantity) = product
 
+    # Имитация для голубой подсветки (чтобы было видно на скриншоте)
     if index == 2:
-        total_quantity = 0
+        total_quantity = 0 
 
     card = QWidget()
     card_layout = QHBoxLayout()
@@ -134,26 +163,31 @@ def create_card(product, index):
     card_layout.addLayout(text_layout)
 
     old_price = float(price)
-    if product_id % 2 == 0:
-        new_price = old_price * DISCOUNT_RATE
-    else:
-        new_price = old_price
-
-    discount = calculate_discount(old_price, new_price)
+    new_price = calculate_price_interior(product_id, old_price)
+    
+    discount_percent = 0
+    if old_price > 0:
+        discount_percent = (old_price - new_price) / old_price * 100
 
     price_layout = QHBoxLayout()
+    
     old_price_label = QLabel(f"<s>{old_price:.2f} ₽</s>")
     old_price_label.setStyleSheet("color: red; font-size: 14px;")
     price_layout.addWidget(old_price_label)
 
     new_price_label = QLabel(f"{new_price:.2f} ₽")
-    new_price_label.setStyleSheet("color: black; font-weight: bold; font-size: 18px;")
+    
+    if discount_percent > 15:
+        new_price_label.setStyleSheet("color: #2E8B57; font-weight: bold; font-size: 18px;")
+    else:
+        new_price_label.setStyleSheet("color: black; font-weight: bold; font-size: 18px;")
+        
     price_layout.addWidget(new_price_label)
     
     price_layout.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
     card_layout.addLayout(price_layout)
 
-    if discount > 0:
+    if discount_percent > 0:
         old_price_label.show()
     else:
         old_price_label.hide()
@@ -264,7 +298,7 @@ class MainWindow(QMainWindow):
         filters_layout.setContentsMargins(0, 10, 0, 10)
         
         self.search_input = QLineEdit()
-        self.search_input.setPlaceholderText("Поиск по названию или стилю...")
+        self.search_input.setPlaceholderText("Поиск по названию, стилю или категории...")
         self.search_input.textChanged.connect(self.load_products)
         
         self.filter_combo = QComboBox()
