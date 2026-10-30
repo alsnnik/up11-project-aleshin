@@ -12,6 +12,7 @@ from login_window import LoginWindow
 # Константа для расчета скидки
 DISCOUNT_RATE = 0.75
 
+#добавлен комментарий
 def calculate_price_interior(item_id, base_price):
     try:
         connection = mysql.connector.connect(
