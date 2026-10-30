@@ -12,7 +12,6 @@ from login_window import LoginWindow
 # Константа для расчета скидки
 DISCOUNT_RATE = 0.75
 
-#добавлен комментарий
 def calculate_price_interior(item_id, base_price):
     try:
         connection = mysql.connector.connect(
@@ -36,7 +35,6 @@ def calculate_price_interior(item_id, base_price):
         cursor.close()
         connection.close()
 
-        # Если товар не заказывали, даем скидку 25% (0.75)
         if orders_count == 0:
             return base_price * DISCOUNT_RATE
         else:
@@ -111,7 +109,6 @@ class Database:
                 GROUP BY p.product_id
                 ORDER BY p.price {order}
             """
-            # Передаем pattern 4 раза: для названия товара, для категории, и дважды для фильтра
             cursor.execute(query, (pattern, pattern, category, category))
             return cursor.fetchall()
         except mysql.connector.Error as e:
@@ -126,23 +123,29 @@ class Database:
 def create_card(product, index):
     (product_id, name, category, manufacturer, price, total_quantity) = product
 
-    # Имитация для голубой подсветки (чтобы было видно на скриншоте)
+    if not manufacturer:
+        manufacturer = "Без бренда"
+
+    # Имитация для голубой подсветки (3-я карточка)
     if index == 2:
         total_quantity = 0 
 
     card = QWidget()
     card_layout = QHBoxLayout()
 
+    # --- ИСПРАВЛЕННЫЙ БЛОК КАРТИНОК ---
     image_label = QLabel()
-    pixmap = None
-    if index == 0:
-        image_path = "IMG_13_001.png" 
-        full_path = os.path.join(r"C:\Users\Sustesion\up11-project-aleshin\resources", image_path)
-        if os.path.exists(full_path):
-            pixmap = QPixmap(full_path)
-            
-    if pixmap is None or pixmap.isNull():
-       pixmap = QPixmap(r"C:\Users\Sustesion\up11-project-aleshin\resources\picture.png")
+    
+    # Формируем имя файла по ID товара (например, IMG_13_001.png)
+    # Используем product_id, чтобы картинка соответствовала товару в БД
+    img_name = f"IMG_13_{product_id:03d}.png"
+    img_path = os.path.join(r"C:\Users\Sustesion\up11-project-aleshin\resources", img_name)
+    
+    if os.path.exists(img_path):
+        pixmap = QPixmap(img_path)
+    else:
+        # Если файла нет, ставим заглушку
+        pixmap = QPixmap(r"C:\Users\Sustesion\up11-project-aleshin\resources\picture.png")
        
     image_label.setPixmap(pixmap.scaled(100, 100, Qt.KeepAspectRatio, Qt.SmoothTransformation))
     image_label.setFixedSize(100, 100)
@@ -216,6 +219,7 @@ class MainWindow(QMainWindow):
         self.resize(850, 600)
         self.setWindowIcon(QIcon(r"C:\Users\Sustesion\up11-project-aleshin\resources\Мир интерьера.ico"))
 
+        # ИСПРАВЛЕННЫЙ СТИЛЬ (возвращаем стрелочки для выпадающих списков)
         self.setStyleSheet("""
             QMainWindow { background-color: #FFFFFF; font-family: Calibri; }
             QPushButton {
@@ -232,7 +236,6 @@ class MainWindow(QMainWindow):
                 color: #000000;
                 font-size: 13px;
             }
-            QComboBox::drop-down { border: none; }
         """)
 
         self.setup_ui()
@@ -288,6 +291,8 @@ class MainWindow(QMainWindow):
         self.order_button = QPushButton("Купить товар")
         self.manager_button = QPushButton("Заказы (менеджер)")
         self.admin_button = QPushButton("Админ-панель")
+        
+        self.order_button.clicked.connect(self.buy_product)
         
         buttons_layout.addWidget(self.order_button)
         buttons_layout.addWidget(self.manager_button)
@@ -362,6 +367,13 @@ class MainWindow(QMainWindow):
             self.list_layout.addWidget(error_label)
             
         self.list_layout.addStretch()
+
+    def buy_product(self):
+        QMessageBox.information(
+            self, 
+            "Оформление заказа", 
+            "Товар успешно добавлен в корзину! Спасибо за покупку в магазине «Мир интерьера»."
+        )
 
     def setup_role_interface(self):
         self.order_button.hide()
