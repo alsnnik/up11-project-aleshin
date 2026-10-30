@@ -4,9 +4,10 @@ import mysql.connector
 from mysql.connector import pooling
 from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, 
                                QVBoxLayout, QHBoxLayout, QLabel, QScrollArea, 
-                               QPushButton, QMessageBox, QLineEdit, QComboBox)
+                               QPushButton, QMessageBox, QLineEdit, QComboBox,
+                               QDialog, QTableWidget, QTableWidgetItem, QHeaderView)
 from PySide6.QtGui import QIcon, QPixmap
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QSize
 from login_window import LoginWindow
 
 # Константа для расчета скидки
@@ -120,37 +121,100 @@ class Database:
             if conn:
                 conn.close()
 
-def create_card(product, index):
+    def get_orders(self):
+        """Получает список всех заказов для менеджера"""
+        conn = self.get_connection()
+        if conn is None:
+            return []
+        cursor = None
+        try:
+            cursor = conn.cursor()
+            query = """
+                SELECT o.order_id, o.order_date, 
+                       CONCAT(u.last_name, ' ', u.first_name) AS client_name,
+                       COALESCE(SUM(oi.quantity * p.price), 0) AS total_sum
+                FROM orders o
+                LEFT JOIN users u ON o.user_id = u.user_id
+                LEFT JOIN order_items oi ON o.order_id = oi.order_id
+                LEFT JOIN products p ON oi.product_id = p.product_id
+                GROUP BY o.order_id
+                ORDER BY o.order_date DESC
+            """
+            cursor.execute(query)
+            return cursor.fetchall()
+        except mysql.connector.Error as e:
+            print(f"Ошибка БД (заказы): {e}")
+            return []
+        finally:
+            if cursor:
+                cursor.close()
+            if conn:
+                conn.close()
+
+    def get_users(self):
+        """Получает список всех пользователей для админа"""
+        conn = self.get_connection()
+        if conn is None:
+            return []
+        cursor = None
+        try:
+            cursor = conn.cursor()
+            query = """
+                SELECT u.user_id, u.last_name, u.first_name, u.login, r.name AS role_name
+                FROM users u
+                LEFT JOIN roles r ON u.role_id = r.role_id
+            """
+            cursor.execute(query)
+            return cursor.fetchall()
+        except mysql.connector.Error as e:
+            print(f"Ошибка БД (пользователи): {e}")
+            return []
+        finally:
+            if cursor:
+                cursor.close()
+            if conn:
+                conn.close()
+
+# КЛАСС ДЛЯ КЛИКАБЕЛЬНОЙ КАРТОЧКИ
+class ClickableCard(QWidget):
+    def __init__(self, product_data, click_callback):
+        super().__init__()
+        self.product_data = product_data
+        self.click_callback = click_callback
+        self.setCursor(Qt.PointingHandCursor) # Курсор в виде руки
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            self.click_callback(self.product_data)
+
+def create_card(product, index, main_window):
     (product_id, name, category, manufacturer, price, total_quantity) = product
 
     if not manufacturer:
         manufacturer = "Без бренда"
 
-    # Имитация для голубой подсветки (3-я карточка)
     if index == 2:
         total_quantity = 0 
 
-    card = QWidget()
+    # Создаем кликабельную карточку
+    card = ClickableCard(product, main_window.show_product_info)
     card_layout = QHBoxLayout()
 
-    # --- ИСПРАВЛЕННЫЙ БЛОК КАРТИНОК ---
+    # Картинка
     image_label = QLabel()
-    
-    # Формируем имя файла по ID товара (например, IMG_13_001.png)
-    # Используем product_id, чтобы картинка соответствовала товару в БД
     img_name = f"IMG_13_{product_id:03d}.png"
     img_path = os.path.join(r"C:\Users\Sustesion\up11-project-aleshin\resources", img_name)
     
     if os.path.exists(img_path):
         pixmap = QPixmap(img_path)
     else:
-        # Если файла нет, ставим заглушку
         pixmap = QPixmap(r"C:\Users\Sustesion\up11-project-aleshin\resources\picture.png")
        
     image_label.setPixmap(pixmap.scaled(100, 100, Qt.KeepAspectRatio, Qt.SmoothTransformation))
     image_label.setFixedSize(100, 100)
     card_layout.addWidget(image_label)
 
+    # Текст
     text_layout = QVBoxLayout()
     name_label = QLabel(f"{manufacturer} | {name}")
     name_label.setStyleSheet("font-size: 16px; font-weight: bold; color: #000000;")
@@ -166,6 +230,7 @@ def create_card(product, index):
     text_layout.addWidget(qty_label)
     card_layout.addLayout(text_layout)
 
+    # Цены
     old_price = float(price)
     new_price = calculate_price_interior(product_id, old_price)
     
@@ -219,7 +284,6 @@ class MainWindow(QMainWindow):
         self.resize(850, 600)
         self.setWindowIcon(QIcon(r"C:\Users\Sustesion\up11-project-aleshin\resources\Мир интерьера.ico"))
 
-        # ИСПРАВЛЕННЫЙ СТИЛЬ (возвращаем стрелочки для выпадающих списков)
         self.setStyleSheet("""
             QMainWindow { background-color: #FFFFFF; font-family: Calibri; }
             QPushButton {
@@ -246,6 +310,7 @@ class MainWindow(QMainWindow):
         main_layout = QVBoxLayout(central)
         main_layout.setContentsMargins(10, 10, 10, 10)
 
+        # --- ШАПКА ---
         header_widget = QWidget()
         header_layout = QHBoxLayout(header_widget)
         header_layout.setContentsMargins(0, 0, 0, 0)
@@ -287,12 +352,15 @@ class MainWindow(QMainWindow):
         line.setStyleSheet("background-color: #E0E0E0;")
         main_layout.addWidget(line)
 
+        # --- КНОПКИ ---
         buttons_layout = QHBoxLayout()
         self.order_button = QPushButton("Купить товар")
         self.manager_button = QPushButton("Заказы (менеджер)")
         self.admin_button = QPushButton("Админ-панель")
         
         self.order_button.clicked.connect(self.buy_product)
+        self.manager_button.clicked.connect(self.show_orders)
+        self.admin_button.clicked.connect(self.show_admin_panel) # Подключаем Админ-панель
         
         buttons_layout.addWidget(self.order_button)
         buttons_layout.addWidget(self.manager_button)
@@ -300,6 +368,7 @@ class MainWindow(QMainWindow):
         buttons_layout.addStretch()
         main_layout.addLayout(buttons_layout)
 
+        # --- ФИЛЬТРЫ ---
         filters_layout = QHBoxLayout()
         filters_layout.setContentsMargins(0, 10, 0, 10)
         
@@ -326,6 +395,7 @@ class MainWindow(QMainWindow):
         
         main_layout.addLayout(filters_layout)
 
+        # --- КАТАЛОГ ---
         self.scroll = QScrollArea()
         self.scroll.setWidgetResizable(True)
         self.scroll.setStyleSheet("QScrollArea { border: none; background-color: #FFFFFF; }")
@@ -355,7 +425,7 @@ class MainWindow(QMainWindow):
             products = self.db.get_products(search_text, category_text, sort_order)
             if products:
                 for index, product in enumerate(products):
-                    self.list_layout.addWidget(create_card(product, index))
+                    self.list_layout.addWidget(create_card(product, index, self))
             else:
                 error_label = QLabel("Товары не найдены (БД вернула пустой список)")
                 error_label.setAlignment(Qt.AlignCenter)
@@ -368,12 +438,76 @@ class MainWindow(QMainWindow):
             
         self.list_layout.addStretch()
 
+    # --- ФУНКЦИИ КНОПОК ---
+
+    def show_product_info(self, product_data):
+        (p_id, name, category, manufacturer, price, total_quantity) = product_data
+        new_price = calculate_price_interior(p_id, float(price))
+        
+        QMessageBox.information(
+            self, 
+            "Информация о товаре", 
+            f"Товар: {name}\n"
+            f"Производитель: {manufacturer}\n"
+            f"Категория: {category}\n"
+            f"В наличии: {int(total_quantity)} шт.\n"
+            f"Цена: {new_price:.2f} ₽"
+        )
+
     def buy_product(self):
         QMessageBox.information(
             self, 
             "Оформление заказа", 
             "Товар успешно добавлен в корзину! Спасибо за покупку в магазине «Мир интерьера»."
         )
+
+    def show_orders(self):
+        orders = self.db.get_orders()
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Управление заказами")
+        dialog.resize(600, 400)
+        layout = QVBoxLayout(dialog)
+        
+        table = QTableWidget()
+        table.setColumnCount(4)
+        table.setHorizontalHeaderLabels(["ID заказа", "Дата", "Клиент", "Сумма (₽)"])
+        table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        
+        table.setRowCount(len(orders))
+        for row, order in enumerate(orders):
+            o_id, o_date, client, total = order
+            table.setItem(row, 0, QTableWidgetItem(str(o_id)))
+            table.setItem(row, 1, QTableWidgetItem(str(o_date)))
+            table.setItem(row, 2, QTableWidgetItem(str(client)))
+            table.setItem(row, 3, QTableWidgetItem(f"{total:.2f}"))
+            
+        layout.addWidget(table)
+        dialog.exec()
+
+    def show_admin_panel(self):
+        """Открывает панель администратора со списком пользователей"""
+        users = self.db.get_users()
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Админ-панель: Пользователи")
+        dialog.resize(500, 400)
+        layout = QVBoxLayout(dialog)
+        
+        table = QTableWidget()
+        table.setColumnCount(5)
+        table.setHorizontalHeaderLabels(["ID", "Фамилия", "Имя", "Логин", "Роль"])
+        table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        
+        table.setRowCount(len(users))
+        for row, user in enumerate(users):
+            u_id, last_name, first_name, login, role = user
+            table.setItem(row, 0, QTableWidgetItem(str(u_id)))
+            table.setItem(row, 1, QTableWidgetItem(str(last_name)))
+            table.setItem(row, 2, QTableWidgetItem(str(first_name)))
+            table.setItem(row, 3, QTableWidgetItem(str(login)))
+            table.setItem(row, 4, QTableWidgetItem(str(role)))
+            
+        layout.addWidget(table)
+        dialog.exec()
 
     def setup_role_interface(self):
         self.order_button.hide()
