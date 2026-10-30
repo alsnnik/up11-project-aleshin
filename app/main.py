@@ -9,7 +9,8 @@ from PySide6.QtGui import QIcon, QPixmap
 from PySide6.QtCore import Qt
 from login_window import LoginWindow
 
-# 1. КЛАСС ДЛЯ РАБОТЫ С БАЗОЙ ДАННЫХ
+DISCOUNT_RATE = 0.8
+
 class Database:
     def __init__(self):
         try:
@@ -20,7 +21,7 @@ class Database:
                 port=3306,
                 database="interior_db",
                 user="root",
-                password="1234"  # <--- ВАШ ПАРОЛЬ
+                password="1234"
             )
         except mysql.connector.Error as e:
             print(f"Ошибка БД: {e}")
@@ -51,8 +52,10 @@ class Database:
             print(f"Ошибка БД (категории): {e}")
             return []
         finally:
-            if cursor: cursor.close()
-            if conn: conn.close()
+            if cursor:
+                cursor.close()
+            if conn:
+                conn.close()
 
     def get_products(self, search="", category="Все категории", order="ASC"):
         conn = self.get_connection()
@@ -81,26 +84,25 @@ class Database:
             print(f"Ошибка БД (товары): {e}")
             return []
         finally:
-            if cursor: cursor.close()
-            if conn: conn.close()
+            if cursor:
+                cursor.close()
+            if conn:
+                conn.close()
 
-# ФУНКЦИЯ РАСЧЕТА СКИДКИ
 def calculate_discount(old_price, new_price):
     if old_price == 0:
         return 0
     return (old_price - new_price) / old_price * 100
 
-# 2. ФУНКЦИЯ СОЗДАНИЯ КАРТОЧКИ ТОВАРА
 def create_card(product, index):
     (product_id, name, category, manufacturer, price, total_quantity) = product
 
     if index == 2:
-        total_quantity = 0 # Имитация для голубой подсветки
+        total_quantity = 0
 
     card = QWidget()
     card_layout = QHBoxLayout()
 
-    # Изображение
     image_label = QLabel()
     pixmap = None
     if index == 0:
@@ -108,18 +110,21 @@ def create_card(product, index):
         full_path = os.path.join(r"C:\Users\Sustesion\up11-project-aleshin\resources", image_path)
         if os.path.exists(full_path):
             pixmap = QPixmap(full_path)
+            
     if pixmap is None or pixmap.isNull():
        pixmap = QPixmap(r"C:\Users\Sustesion\up11-project-aleshin\resources\picture.png")
+       
     image_label.setPixmap(pixmap.scaled(100, 100, Qt.KeepAspectRatio, Qt.SmoothTransformation))
     image_label.setFixedSize(100, 100)
     card_layout.addWidget(image_label)
 
-    # Текстовая часть
     text_layout = QVBoxLayout()
     name_label = QLabel(f"{manufacturer} | {name}")
     name_label.setStyleSheet("font-size: 16px; font-weight: bold; color: #000000;")
+    
     cat_label = QLabel(f"Категория: {category}")
     cat_label.setStyleSheet("color: #000000; font-size: 13px;")
+    
     qty_label = QLabel(f"Количество: {int(total_quantity)}")
     qty_label.setStyleSheet("color: #000000; font-size: 13px;")
     
@@ -128,10 +133,9 @@ def create_card(product, index):
     text_layout.addWidget(qty_label)
     card_layout.addLayout(text_layout)
 
-    # Блок цен
     old_price = float(price)
     if product_id % 2 == 0:
-        new_price = old_price * 0.8
+        new_price = old_price * DISCOUNT_RATE
     else:
         new_price = old_price
 
@@ -156,7 +160,6 @@ def create_card(product, index):
 
     card.setLayout(card_layout)
 
-    # Подсветка
     if total_quantity == 0:
         card.setStyleSheet("background-color: #ADD8E6; border-radius: 10px; padding: 10px;")
     else:
@@ -164,7 +167,6 @@ def create_card(product, index):
 
     return card
 
-# 3. ГЛАВНОЕ ОКНО ПРИЛОЖЕНИЯ
 class MainWindow(QMainWindow):
     def __init__(self, role_id=None, full_name=None): 
         super().__init__()
@@ -206,7 +208,6 @@ class MainWindow(QMainWindow):
         main_layout = QVBoxLayout(central)
         main_layout.setContentsMargins(10, 10, 10, 10)
 
-        # --- ШАПКА ---
         header_widget = QWidget()
         header_layout = QHBoxLayout(header_widget)
         header_layout.setContentsMargins(0, 0, 0, 0)
@@ -243,13 +244,11 @@ class MainWindow(QMainWindow):
         
         main_layout.addWidget(header_widget)
         
-        # Разделительная линия под шапкой
         line = QWidget()
         line.setFixedHeight(1)
         line.setStyleSheet("background-color: #E0E0E0;")
         main_layout.addWidget(line)
 
-        # --- КНОПКИ РОЛЕЙ (Скрыты по умолчанию) ---
         buttons_layout = QHBoxLayout()
         self.order_button = QPushButton("Купить товар")
         self.manager_button = QPushButton("Заказы (менеджер)")
@@ -261,7 +260,6 @@ class MainWindow(QMainWindow):
         buttons_layout.addStretch()
         main_layout.addLayout(buttons_layout)
 
-        # --- ПАНЕЛЬ ПОИСКА, КАТЕГОРИЙ И СОРТИРОВКИ ---
         filters_layout = QHBoxLayout()
         filters_layout.setContentsMargins(0, 10, 0, 10)
         
@@ -288,7 +286,6 @@ class MainWindow(QMainWindow):
         
         main_layout.addLayout(filters_layout)
 
-        # --- КАТАЛОГ (ПРОКРУТКА) ---
         self.scroll = QScrollArea()
         self.scroll.setWidgetResizable(True)
         self.scroll.setStyleSheet("QScrollArea { border: none; background-color: #FFFFFF; }")
@@ -335,6 +332,7 @@ class MainWindow(QMainWindow):
         self.order_button.hide()
         self.manager_button.hide()
         self.admin_button.hide()
+        
         if self.role_id == 1:
             self.admin_button.show()
             self.manager_button.show()
